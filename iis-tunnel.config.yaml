@@ -1,0 +1,57 @@
+# IIS-Tunnel Configuration File
+# ==============================
+# Each profile is completely self-contained.
+# No default values - everything must be defined in each profile.
+# Use: iis-tunnel --profile <name> --deploy
+
+profiles:
+  my-app:
+    description: "Example deployment profile"
+    # password: "optional-password-for-self-check"
+    source:
+      path: C:\path\to\your\source
+      folders:
+        - bin:  # Copy specific files from bin folder
+            - myapp.dll
+            - myapp.xml
+        - wwwroot  # Copy entire folder
+    staging:
+      type: ssh
+      path: C:\Users\deployuser\staging_folder
+      ssh:
+        host: your-server-hostname
+        port: 22
+        username: deployuser
+        privateKey: C:\Users\youruser\.ssh\your_private_key
+    destination:
+      type: ssh
+      path: C:\Users\deployuser\MyApp
+      ssh:
+        host: your-server-hostname
+        port: 22
+        username: deployuser
+        privateKey: C:\Users\youruser\.ssh\your_private_key
+    backup:
+      path: C:\Users\deployuser\backups
+      maxBackups: 5
+    logging:
+      path: C:\Users\deployuser\logs
+      filename: my-app-deploy
+
+  # You can add more profiles here:
+  # another-app:
+  #   description: "Another deployment profile"
+  #   source:
+  #     path: C:\path\to\another\source
+  #   staging:
+  #     type: local
+  #     path: C:\temp\staging
+  #   destination:
+  #     type: local
+  #     path: C:\inetpub\wwwroot\AnotherApp
+  #   backup:
+  #     path: C:\backups\another-app
+  #     maxBackups: 3
+  #   logging:
+  #     path: C:\logs
+  #     filename: another-app-deploy

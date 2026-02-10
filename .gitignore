@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.deploy-temp/
+.claude/
+backups/
+destination/
+source/
+logs/
+nul
+*.log
+*.zip
