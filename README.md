@@ -20,6 +20,16 @@ Designed for IIS application deployments: compress source files locally, transfe
 - **Node.js** >= 18.0.0
 - **7-Zip** installed and available in PATH
 
+### Installing winget (if not available)
+
+winget comes pre-installed on Windows 10 (1709+) and Windows 11. If you don't have it, install it from the [Microsoft Store](https://apps.microsoft.com/detail/9NBLGGH4NNS1) (search "App Installer") or download the latest `.msixbundle` from [github.com/microsoft/winget-cli/releases](https://github.com/microsoft/winget-cli/releases).
+
+Verify with:
+
+```bash
+winget --version
+```
+
 ### Installing 7-Zip
 
 ```bash
