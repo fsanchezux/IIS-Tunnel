@@ -22,33 +22,28 @@ Designed for IIS application deployments: compress source files locally, transfe
 
 ### Installing 7-Zip
 
-1. Download 7-Zip from [https://www.7-zip.org/download.html](https://www.7-zip.org/download.html)
-2. Install it (default path: `C:\Program Files\7-Zip`)
-3. Add 7-Zip to your system PATH:
-   - Open **Start** > search **"Environment Variables"** > click **"Edit the system environment variables"**
-   - Click **"Environment Variables"**
-   - Under **System variables**, select **Path** > click **Edit**
-   - Click **New** and add `C:\Program Files\7-Zip`
-   - Click **OK** on all dialogs
-4. Verify by opening a new terminal and running:
-   ```
-   7z
-   ```
+```bash
+winget install 7zip.7zip
+```
+
+Then restart your terminal so the PATH is updated. Verify with:
+
+```bash
+7z
+```
 
 ## Installation
 
 ### From GitHub (recommended)
 
 ```bash
-npm install -g github:your-username/IIS-Tunnel
+npm install -g github:fsanchezux/IIS-Tunnel
 ```
-
-Replace `your-username` with the actual GitHub username or organization.
 
 ### From a local clone
 
 ```bash
-git clone https://github.com/your-username/IIS-Tunnel.git
+git clone https://github.com/fsanchezux/IIS-Tunnel.git
 cd IIS-Tunnel
 npm install
 npm run build
