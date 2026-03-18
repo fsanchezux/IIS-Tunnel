@@ -303,6 +303,12 @@ export class FileOpsService {
   }
 
   private async deleteSSHContents(dirPath: string, ssh: SSHService): Promise<void> {
+    // For Windows paths, use cmd.exe exec to avoid SFTP permission restrictions
+    if (/^[A-Za-z]:/.test(dirPath)) {
+      await ssh.clearWindowsDirContents(dirPath);
+      return;
+    }
+
     const sshDirPath = this.toSshPath(dirPath);
     const files = await ssh.readDir(sshDirPath);
 
@@ -341,18 +347,15 @@ export class FileOpsService {
   }
 
   async ensureDir(location: LocationConfig): Promise<void> {
-    // This method now VERIFIES the directory exists, does NOT create it
     if (location.type === 'local') {
-      if (!(await fs.pathExists(location.path))) {
-        throw new Error(`Directory does not exist: ${location.path}`);
-      }
+      await fs.ensureDir(location.path);
     } else {
       const ssh = await this.ensureSSHConnection(location);
       if (!ssh) throw new Error('SSH connection required');
       const sshPath = this.toSshPath(location.path);
       const stats = await ssh.stat(sshPath);
       if (!stats) {
-        throw new Error(`Directory does not exist on remote: ${sshPath}`);
+        await ssh.mkdir(sshPath, true);
       }
     }
   }

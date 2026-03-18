@@ -115,31 +115,19 @@ export class SSHService {
   async mkdir(remotePath: string, recursive = true): Promise<void> {
     if (!this.sftp) throw new Error('SFTP not connected');
 
-    if (recursive) {
-      // Handle Windows-style paths (C:/Users/...) on Windows SSH servers
-      const isWindowsPath = /^[A-Za-z]:/.test(remotePath);
-      const parts = remotePath.split('/').filter(Boolean);
-      let currentPath = '';
+    if (!recursive) {
+      return this.mkdirSingle(remotePath);
+    }
 
-      if (isWindowsPath) {
-        // For Windows paths, start with the drive letter
-        currentPath = parts[0]; // e.g., "C:"
-        parts.shift(); // Remove drive from parts
-      } else if (remotePath.startsWith('/')) {
-        currentPath = '';
-      } else {
-        currentPath = '.';
-      }
+    const parts = remotePath.split('/').filter(Boolean);
+    let currentPath = remotePath.startsWith('/') ? '' : '.';
 
-      for (const part of parts) {
-        currentPath = currentPath ? `${currentPath}/${part}` : `/${part}`;
-        const stats = await this.stat(currentPath);
-        if (!stats) {
-          await this.mkdirSingle(currentPath);
-        }
+    for (const part of parts) {
+      currentPath = currentPath ? `${currentPath}/${part}` : `/${part}`;
+      const stats = await this.stat(currentPath);
+      if (!stats) {
+        await this.mkdirSingle(currentPath);
       }
-    } else {
-      await this.mkdirSingle(remotePath);
     }
   }
 
@@ -157,7 +145,6 @@ export class SSHService {
 
   async uploadFile(localPath: string, remotePath: string): Promise<void> {
     if (!this.sftp) throw new Error('SFTP not connected');
-
     return new Promise((resolve, reject) => {
       this.sftp!.fastPut(localPath, remotePath, (err) => {
         if (err) reject(new Error(`uploadFile failed: "${localPath}" -> "${remotePath}": ${err.message}`));
@@ -173,7 +160,6 @@ export class SSHService {
   ): Promise<void> {
     if (!this.sftp) throw new Error('SFTP not connected');
 
-    // Get local file size using fs (was incorrectly using sftp.stat on local path)
     const localStats = await fs.stat(localPath);
     const totalSize = localStats.size;
     let uploadedSize = 0;
@@ -321,6 +307,16 @@ export class SSHService {
         });
       });
     });
+  }
+
+  // Clear all files and subdirectories inside a Windows remote directory using cmd.exe exec
+  // (bypasses SFTP which has restricted permissions on Windows SSH servers)
+  async clearWindowsDirContents(remotePath: string): Promise<void> {
+    const winPath = remotePath.replace(/\//g, '\\');
+    // Delete all files (ignore if empty)
+    await this.exec(`cmd.exe /c del /f /s /q "${winPath}\\*" 2>nul`).catch(() => {});
+    // Delete subdirectories
+    await this.exec(`cmd.exe /c for /d %i in ("${winPath}\\*") do @rd /s /q "%i" 2>nul`).catch(() => {});
   }
 
   async disconnect(): Promise<void> {
