@@ -1,0 +1,11 @@
+node_modules/
+.deploy-temp/
+.claude/
+backups/
+destination/
+source/
+logs/
+src/
+tsconfig.json
+*.log
+*.zip
