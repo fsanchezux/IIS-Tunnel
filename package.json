@@ -9,6 +9,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
+    "prepare": "npm run build",
     "start": "node dist/index.js",
     "dev": "tsc && node dist/index.js"
   },
@@ -31,6 +32,10 @@
     "js-yaml": "^4.1.1",
     "ora": "^9.3.0",
     "ssh2": "^1.17.0"
+  },
+  "optionalDependencies": {
+    "cpu-features": "*",
+    "buildcheck": "*"
   },
   "devDependencies": {
     "@types/archiver": "^7.0.0",
