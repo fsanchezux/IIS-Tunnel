@@ -47,8 +47,10 @@ Then restart your terminal so the PATH is updated. Verify with:
 ### From GitHub (recommended)
 
 ```bash
-npm install -g github:fsanchezux/IIS-Tunnel
+npm install -g github:fsanchezux/IIS-Tunnel --ignore-scripts
 ```
+
+> `--ignore-scripts` is required to skip native binary compilation (ssh2 works fine without it).
 
 ### From a local clone
 
