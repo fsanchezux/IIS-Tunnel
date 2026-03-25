@@ -313,10 +313,8 @@ export class SSHService {
   // (bypasses SFTP which has restricted permissions on Windows SSH servers)
   async clearWindowsDirContents(remotePath: string): Promise<void> {
     const winPath = remotePath.replace(/\//g, '\\');
-    // Delete all files (ignore if empty)
-    await this.exec(`cmd.exe /c del /f /s /q "${winPath}\\*" 2>nul`).catch(() => {});
-    // Delete subdirectories
-    await this.exec(`cmd.exe /c for /d %i in ("${winPath}\\*") do @rd /s /q "%i" 2>nul`).catch(() => {});
+    // Delete the entire directory and recreate it — more reliable than per-item deletion
+    await this.exec(`cmd.exe /c rmdir /s /q "${winPath}" && mkdir "${winPath}"`);
   }
 
   async disconnect(): Promise<void> {
