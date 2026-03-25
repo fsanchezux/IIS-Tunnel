@@ -38,8 +38,8 @@ export async function deployCommand(
     : `${config.staging.path}/${zipFileName}`;
 
   try {
-    // Ensure temp directory exists
-    await fs.ensureDir(localTempDir);
+    // Ensure temp directory exists and is clean (avoid stale files from previous deployments)
+    await fs.emptyDir(localTempDir);
 
     // Step 1: Compress source files locally (fast)
     const spinnerCompress = ora('Compressing files...').start();
