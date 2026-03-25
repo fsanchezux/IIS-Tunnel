@@ -299,8 +299,8 @@ export class SSHService {
         });
 
         stream.on('close', (code: number) => {
-          if (code !== 0 && stderr) {
-            reject(new Error(stderr));
+          if (code !== 0) {
+            reject(new Error(stderr || stdout || `Command exited with code ${code}`));
           } else {
             resolve(stdout);
           }

@@ -158,9 +158,9 @@ export async function deployCommand(
           const remoteUpdatePath = isWindowsRemote
             ? `${config.staging.path.replace(/\//g, '\\')}\\update.bat`
             : `${config.staging.path.replace(/\\/g, '/')}/update.bat`;
-          // Use cmd.exe on Windows remotes, otherwise try sh
+          // Use PowerShell on Windows remotes (more compatible with OpenSSH than cmd.exe /c)
           if (isWindowsRemote) {
-            await ssh.exec(`cmd.exe /c "${remoteUpdatePath}"`);
+            await ssh.exec(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& cmd.exe /c '${remoteUpdatePath}'"`);
           } else {
             await ssh.exec(`bash -lc "\"${remoteUpdatePath}\""`);
           }
