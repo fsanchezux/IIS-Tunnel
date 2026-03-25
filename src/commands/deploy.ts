@@ -16,7 +16,8 @@ async function getFileSize(filePath: string): Promise<string> {
 
 export async function deployCommand(
   config: AppConfig,
-  sourceFolders?: (string | { [key: string]: string[] })[] | null
+  sourceFolders?: (string | { [key: string]: string[] })[] | null,
+  looseFiles?: string[] | null
 ): Promise<DeployResult> {
   const startTime = new Date();
   const errors: string[] = [];
@@ -45,7 +46,7 @@ export async function deployCommand(
     try {
       // Use sourceFolders passed (from configService) or null to copy all
       const foldersToCopy = sourceFolders ?? null;
-      const sourceFiles = await fileOps.copyToTemp(config.source, config.staging, foldersToCopy, localTempDir);
+      const sourceFiles = await fileOps.copyToTemp(config.source, config.staging, foldersToCopy, localTempDir, looseFiles);
       
       let lastProgress = 0;
       await fileOps.compressFiles(localTempDir, localZipPath, (progress) => {

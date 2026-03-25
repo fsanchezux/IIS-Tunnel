@@ -5,53 +5,233 @@
 # Use: iis-tunnel --profile <name> --deploy
 
 profiles:
-  my-app:
-    description: "Example deployment profile"
-    # password: "optional-password-for-self-check"
+  itescola:
+    description: "Deployment profile for ITE School"
+    password: "ferrantpvescola"
     source:
-      path: C:\path\to\your\source
+      path: C:\temp\demo
+      files:           # Loose files directly in C:\temp\demo (no subfolder)
+        - Global.asax
+        - Web.config
       folders:
         - bin:  # Copy specific files from bin folder
-            - myapp.dll
-            - myapp.xml
-        - wwwroot  # Copy entire folder
+            - demoapp.dll
+            - demoapp.xml
+        - itescola
+        - js:
+            - ITGlobalResources.html
+      
     staging:
       type: ssh
-      path: C:\Users\deployuser\staging_folder
+      path: C:\webs\t_itescola
       ssh:
-        host: your-server-hostname
+        host: 85.215.220.180
         port: 22
         username: deployuser
-        privateKey: C:\Users\youruser\.ssh\your_private_key
+        privateKey: C:\Users\fsanc\.ssh\tpvescola_deploy_new
     destination:
       type: ssh
-      path: C:\Users\deployuser\MyApp
+      path: C:\webs\ITEscolaApp
       ssh:
-        host: your-server-hostname
+        host: 85.215.220.180
         port: 22
         username: deployuser
-        privateKey: C:\Users\youruser\.ssh\your_private_key
+        privateKey: C:\Users\fsanc\.ssh\tpvescola_deploy_new
     backup:
-      path: C:\Users\deployuser\backups
+      path: C:\webs\backups_t_itescola
       maxBackups: 5
     logging:
-      path: C:\Users\deployuser\logs
-      filename: my-app-deploy
+      path: C:\webs\t_Itescola
+      filename: itescola-deploy
+  administracio:
+    description: "Deployment profile for administracio"
+    source:
+      path: C:\temp\demo
+      folders:
+        - bin:  # Copy specific files from bin folder
+            - demoapp.dll
+            - demoapp.xml     
+        - administracio        
+      
+    staging:
+      type: ssh
+      path:  C:\webs\t_administracio
+      ssh:
+        host: 85.215.220.180
+        port: 22
+        username: deployuser
+        privateKey: C:\Users\fsanc\.ssh\tpvescola_deploy_new
+    destination:
+      type: ssh
+      path:  C:\webs\AdministracioApp
+      ssh:
+        host: 85.215.220.180
+        port: 22
+        username: deployuser
+        privateKey: C:\Users\fsanc\.ssh\tpvescola_deploy_new
+    backup:
+      path:  C:\webs\backups_t_administracio
+      maxBackups: 5
+    logging:
+      path:  C:\webs\t_administracio
+      filename: administracio-deploy
+  testTpvescola:
+    description: "Deployment profile for testing"
+    source:
+      path: C:\temp\demo
+      folders:
+        - bin
+        - administracioNew
+        - js:
+            - tpvcommon.js                
 
-  # You can add more profiles here:
-  # another-app:
-  #   description: "Another deployment profile"
-  #   source:
-  #     path: C:\path\to\another\source
-  #   staging:
-  #     type: local
-  #     path: C:\temp\staging
-  #   destination:
-  #     type: local
-  #     path: C:\inetpub\wwwroot\AnotherApp
-  #   backup:
-  #     path: C:\backups\another-app
-  #     maxBackups: 3
-  #   logging:
-  #     path: C:\logs
-  #     filename: another-app-deploy
+    staging:
+      type: ssh
+      path:  C:\webs\t_test
+      ssh:
+        host: 85.215.150.50
+        port: 22
+        username: deployuser
+        privateKey: C:\Users\fsanc\.ssh\tpvescola_deploy_new
+    destination:
+      type: ssh
+      path:  C:\webs\TestTPVEscola
+      ssh:
+        host: 85.215.220.180
+        port: 22
+        username: deployuser
+        privateKey: C:\Users\fsanc\.ssh\tpvescola_deploy_new
+    backup:
+      path:  C:\webs\backups_t_test
+      maxBackups: 5
+    logging:
+      path:  C:\webs\t_test
+      filename: test-deploy
+
+  tpvescola:
+    description: "Deployment profile for users website production"
+    source:
+      path: C:\temp\demo
+      files:
+        # - About.aspx
+        # - AdRedirect.aspx
+        # - Analytics.aspx
+        # - AnulaMenjador.aspx
+        # - AnularServei.aspx
+        # - AvisLegal.aspx
+        # - Calendar.ascx
+        # - CalendarHandler.ashx
+        # - CaptchaHandler.ashx
+        # - Comanda.aspx
+        # - Comandes.aspx
+        # - CompraEntrades.aspx
+        # - Comprar.aspx
+        # - Compres.aspx
+        # - CompresMain.aspx
+        # - ConfirmaServei.aspx
+        # - ConfirmacioPagament.aspx
+        # - ConsultaActivitatsExtraescolars.aspx
+        # - ConsultarSaldo.aspx
+        # - Consultes.aspx
+        # - CrearInformeServeis.aspx
+        # - Dades.aspx
+        # - Default.aspx
+        # - Default2.aspx
+        # - DetallArticle.aspx
+        # - DirectLogin.aspx
+        # - Domiciliacio.aspx
+        # - DownloadZip.ashx
+        # - EntradesSeleccioZona.aspx
+        # - Errors.aspx
+        # - EstatActivitatsExtraescolars.aspx
+        # - Extraescolars.aspx
+        # - FirstSteps.aspx
+        # - FisicInterface.aspx
+        # - Fitxatge.aspx
+        # - FormulariEditItem.aspx
+        # - FormulariFirma.aspx
+        # - FormulariRender.aspx
+        # - Formulario.aspx
+        # - Formularis.aspx
+        # - FormularisFinalitzar.aspx
+        # - Gestio.aspx
+        # - GestioProfes.aspx
+        # - GestioServei.aspx
+        # - GestioServeiActivitats.aspx
+        # - GetAjuda.ashx
+        # - GetApiProcess.aspx
+        # - GetMenuPDF.ashx
+        # - Getpdf.ashx
+        # - Hack.aspx
+        # - IFrameRedsys.aspx
+        # - Justificants.aspx
+        # - KitDigital.aspx
+        # - LegalTerms.aspx
+        # - Missatges.aspx
+        # - NOindex.html
+        # - OperacioNoRealitzada.aspx
+        # - Operacions.aspx
+        # - PagamentKO.aspx
+        # - PagamentOK.aspx
+        # - PagamentSegur.aspx
+        # - Pagaments.aspx
+        # - Pasarela.aspx
+        # - PassarLlista.aspx
+        # - PlantillaDefault.aspx
+        # - PoliticaVenda.aspx
+        # - Pre-Formulari.aspx
+        # - PrecompiledApp.config
+        # - Queestpvescola.aspx
+        # - Registre.aspx
+        # - ResultKO.aspx
+        # - ResultOK.aspx
+        # - SendApi.aspx
+        # - Serveis.aspx
+        # - ServeisGestioDetall.aspx
+        # - ServeisMostrar.aspx
+        # - ShowPicture.aspx
+        # - ShowReport - copia.aspx
+        # - ShowReport.aspx
+        # - Site.master
+        # - Stats.aspx
+        # - TextOnImageHandler.ashx
+        # - Tickets.aspx
+        # - TraspasSaldo.aspx
+        # - TraspasTiquets.aspx
+        # - Usuaris.aspx
+        # - VeureInforme.aspx
+        # - ViewPDFGoogle.aspx
+        # - Vincular.aspx
+
+      folders:
+        - common: 
+            - ITUser_Observacions.aspx
+            - AbsenciesUsuari.aspx
+        - bin:
+            - demoapp.dll
+            - demoapp.xml     
+                
+                          
+
+    staging:
+      type: ssh
+      path:  C:\webs\t_tpvescola
+      ssh:
+        host: 85.215.150.50
+        port: 22
+        username: deployuser
+        privateKey: C:\Users\fsanc\.ssh\tpvescola_deploy_new
+    destination:
+      type: ssh
+      path:  C:\webs\TPVEscolaApp
+      ssh:
+        host: 85.215.150.50
+        port: 22
+        username: deployuser
+        privateKey: C:\Users\fsanc\.ssh\tpvescola_deploy_new
+    backup:
+      path:  C:\webs\backups_t_tpvescola
+      maxBackups: 5
+    logging:
+      path:  C:\webs\t_test
+      filename: test-deploy

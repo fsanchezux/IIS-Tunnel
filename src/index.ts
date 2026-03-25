@@ -183,6 +183,12 @@ async function main() {
         console.log(`  Folders:     ${chalk.yellow(sourceFolders.join(', '))}`);
       }
 
+      // Show loose root files if specified
+      const sourceFiles = configService.getSourceFiles();
+      if (sourceFiles && sourceFiles.length > 0) {
+        console.log(`  Root files:  ${chalk.yellow(sourceFiles.join(', '))}`);
+      }
+
       console.log(`  Staging:     ${chalk.cyan(config.staging.type)} - ${config.staging.path}`);
       console.log(`  Destination: ${chalk.cyan(config.destination.type)} - ${config.destination.path}`);
       console.log(`  Backups:     ${config.backup.path} (max: ${config.backup.maxBackups})`);
@@ -205,7 +211,7 @@ async function main() {
           console.log(chalk.green('Password verified. Continuing...\n'));
         }
 
-        const result = await deployCommand(config, sourceFolders);
+        const result = await deployCommand(config, sourceFolders, sourceFiles);
         process.exit(result.success ? 0 : 1);
       }
 

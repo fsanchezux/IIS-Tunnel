@@ -709,7 +709,8 @@ exit 0
     source: LocationConfig,
     staging: LocationConfig,
     folders: (string | { [key: string]: string[] })[] | null | undefined,
-    tempDir: string
+    tempDir: string,
+    files?: string[] | null
   ): Promise<number> {
     // Copy only the files we need to a temp directory for compression
     if (folders && folders.length > 0) {
@@ -773,6 +774,10 @@ exit 0
           }
         }
       }
+      // Also copy loose root files if specified
+      if (files && files.length > 0) {
+        totalCount += await this.copyLooseFiles(source, tempDir, files);
+      }
       return totalCount;
     } else {
       // Copy all files
@@ -785,6 +790,35 @@ exit 0
         return this.downloadDirectory(source.path, tempDir, ssh);
       }
     }
+  }
+
+  private async copyLooseFiles(
+    source: LocationConfig,
+    tempDir: string,
+    files: string[]
+  ): Promise<number> {
+    let count = 0;
+    for (const file of files) {
+      const srcFile = source.type === 'local'
+        ? path.join(source.path, file)
+        : this.joinPath(source.path, file);
+      const destFile = path.join(tempDir, file);
+
+      if (!(await this.exists({ ...source, path: srcFile }))) {
+        throw new Error(`Source file does not exist: ${srcFile}`);
+      }
+
+      if (source.type === 'local') {
+        await fs.copy(srcFile, destFile, { overwrite: true });
+        count++;
+      } else {
+        const ssh = await this.ensureSSHConnection(source);
+        if (!ssh) throw new Error('SSH connection required for source');
+        await ssh.downloadFile(srcFile, destFile);
+        count++;
+      }
+    }
+    return count;
   }
 
   async transferFile(

@@ -30,6 +30,7 @@ export interface ProfileConfig {
   source: {
     path: string;
     folders?: (string | { [folderName: string]: string[] })[];  // Can be folder name or {folder: [files]}
+    files?: string[];  // Loose files in the root of source.path (no subfolder)
     type?: 'local' | 'ssh';
     ssh?: SSHConfig;
   };

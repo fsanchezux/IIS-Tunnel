@@ -10,6 +10,7 @@ export class ConfigService {
   private baseConfig: BaseConfig | null = null;
   private activeProfile: string | null = null;
   private sourceFolders: (string | { [key: string]: string[] })[] | null = null;
+  private sourceFiles: string[] | null = null;
 
   async load(configPath?: string, profileName?: string): Promise<AppConfig> {
     const filePath = configPath || this.findConfigFile();
@@ -77,6 +78,11 @@ export class ConfigService {
       this.sourceFolders = profile.source.folders;
     }
 
+    // Set source files (loose files at root) if specified
+    if (profile.source.files && profile.source.files.length > 0) {
+      this.sourceFiles = profile.source.files;
+    }
+
     // Build staging config
     const stagingType = profile.staging.type;
     const staging: LocationConfig = {
@@ -132,6 +138,10 @@ export class ConfigService {
 
   getSourceFolders(): (string | { [key: string]: string[] })[] | null {
     return this.sourceFolders;
+  }
+
+  getSourceFiles(): string[] | null {
+    return this.sourceFiles;
   }
 
   getAvailableProfiles(): string[] {
@@ -246,6 +256,7 @@ export class ConfigService {
         source: {
           path: sourceRaw.path as string,
           folders: sourceRaw.folders as string[] | undefined,
+          files: sourceRaw.files as string[] | undefined,
           type: (sourceRaw.type as 'local' | 'ssh') || 'local',
           ssh: sourceRaw.ssh as SSHConfig | undefined,
         },
