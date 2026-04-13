@@ -126,11 +126,11 @@ async function main() {
             }
             // Launch web UI
             if (options.ui) {
-                const port = parseInt(options.port) || 3847;
+                const preferredPort = parseInt(options.port) || 3847;
                 const configPath = options.config || path.join(process.cwd(), 'iis-tunnel.config.yaml');
-                await startServer(port, configPath);
+                const actualPort = await startServer(preferredPort, configPath);
                 const open = (await import('open')).default;
-                await open(`http://localhost:${port}`);
+                await open(`http://localhost:${actualPort}`);
                 return;
             }
             // Open config file in editor

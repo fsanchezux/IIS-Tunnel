@@ -212,7 +212,7 @@ function getSelectedPathsFromFolders(
   return selected;
 }
 
-export async function startServer(port: number, cfgPath?: string): Promise<void> {
+export async function startServer(port: number, cfgPath?: string): Promise<number> {
   configFilePath = cfgPath || path.join(process.cwd(), 'iis-tunnel.config.yaml');
 
   const app = express();
@@ -455,7 +455,22 @@ export async function startServer(port: number, cfgPath?: string): Promise<void>
     });
   });
 
-  server.listen(port, () => {
-    console.log(`IIS-Tunnel UI running at http://localhost:${port}`);
+  // Try the requested port, then fall back to next available
+  return new Promise<number>((resolve, reject) => {
+    const tryListen = (p: number, retries: number): void => {
+      server.once('error', (err: NodeJS.ErrnoException) => {
+        if (err.code === 'EADDRINUSE' && retries > 0) {
+          console.log(`Port ${p} in use, trying ${p + 1}...`);
+          tryListen(p + 1, retries - 1);
+        } else {
+          reject(err);
+        }
+      });
+      server.listen(p, () => {
+        console.log(`IIS-Tunnel UI running at http://localhost:${p}`);
+        resolve(p);
+      });
+    };
+    tryListen(port, 10);
   });
 }

@@ -407,8 +407,24 @@ export async function startServer(port, cfgPath) {
             }
         });
     });
-    server.listen(port, () => {
-        console.log(`IIS-Tunnel UI running at http://localhost:${port}`);
+    // Try the requested port, then fall back to next available
+    return new Promise((resolve, reject) => {
+        const tryListen = (p, retries) => {
+            server.once('error', (err) => {
+                if (err.code === 'EADDRINUSE' && retries > 0) {
+                    console.log(`Port ${p} in use, trying ${p + 1}...`);
+                    tryListen(p + 1, retries - 1);
+                }
+                else {
+                    reject(err);
+                }
+            });
+            server.listen(p, () => {
+                console.log(`IIS-Tunnel UI running at http://localhost:${p}`);
+                resolve(p);
+            });
+        };
+        tryListen(port, 10);
     });
 }
 //# sourceMappingURL=api.js.map
