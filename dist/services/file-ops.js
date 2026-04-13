@@ -1,5 +1,6 @@
 import fs from 'fs-extra';
 import path from 'path';
+import os from 'os';
 import { spawn } from 'child_process';
 import archiver from 'archiver';
 import { createWriteStream } from 'fs';
@@ -1042,7 +1043,7 @@ exit 0
     }
     async uploadAndExecuteRestoreBat(staging, destination, backup) {
         const restoreBat = this.generateRestoreBat(staging, destination, backup);
-        const localTempDir = path.join(process.cwd(), '.deploy-temp');
+        const localTempDir = path.join(os.tmpdir(), '.deploy-temp');
         await fs.ensureDir(localTempDir);
         const localRestorePath = path.join(localTempDir, 'restore.bat');
         await fs.writeFile(localRestorePath, restoreBat, 'utf8');

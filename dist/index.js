@@ -8,6 +8,7 @@ import { configService } from './services/config.js';
 import { logger } from './services/logger.js';
 import { deployCommand } from './commands/deploy.js';
 import { restoreCommand } from './commands/restore.js';
+import { startServer } from './server/api.js';
 function promptPassword(message) {
     return new Promise((resolve) => {
         if (process.stdin.isTTY) {
@@ -82,7 +83,9 @@ async function main() {
         .option('--deploy', 'Deploy files from source to destination')
         .option('--restore', 'Restore the latest backup for the profile')
         .option('--dry-run', 'Show what would be done without making changes')
-        .option('--edit', 'Open the configuration file in the default editor');
+        .option('--edit', 'Open the configuration file in the default editor')
+        .option('--ui', 'Launch the web UI')
+        .option('--port <number>', 'Port for the web UI (default: 3847)');
     // Register each profile name as a shortcut flag (e.g. --itescola, --administracio)
     for (const name of profileNames) {
         program.option(`--${name}`, `Shortcut for --profile ${name}`);
@@ -119,6 +122,15 @@ async function main() {
                     }
                     console.log('');
                 }
+                return;
+            }
+            // Launch web UI
+            if (options.ui) {
+                const port = parseInt(options.port) || 3847;
+                const configPath = options.config || path.join(process.cwd(), 'iis-tunnel.config.yaml');
+                await startServer(port, configPath);
+                const open = (await import('open')).default;
+                await open(`http://localhost:${port}`);
                 return;
             }
             // Open config file in editor

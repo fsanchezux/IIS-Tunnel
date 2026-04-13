@@ -26,22 +26,27 @@
     "archiver": "^7.0.0",
     "chalk": "^5.6.2",
     "commander": "^14.0.3",
+    "express": "^5.2.1",
     "extract-zip": "^2.0.1",
     "fs-extra": "^11.3.3",
     "js-yaml": "^4.1.1",
+    "open": "^11.0.0",
     "ora": "^9.3.0",
-    "ssh2": "^1.17.0"
+    "ssh2": "^1.17.0",
+    "ws": "^8.20.0"
   },
   "optionalDependencies": {
-    "cpu-features": "*",
-    "buildcheck": "*"
+    "buildcheck": "*",
+    "cpu-features": "*"
   },
   "devDependencies": {
     "@types/archiver": "^7.0.0",
+    "@types/express": "^5.0.6",
     "@types/fs-extra": "^11.0.4",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.2.0",
     "@types/ssh2": "^1.15.5",
+    "@types/ws": "^8.18.1",
     "typescript": "^5.9.3"
   },
   "engines": {

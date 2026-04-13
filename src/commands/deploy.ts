@@ -2,6 +2,7 @@ import ora from 'ora';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
+import os from 'os';
 import { spawn } from 'child_process';
 import type { AppConfig, DeployResult } from '../types/config.types.js';
 import { FileOpsService } from '../services/file-ops.js';
@@ -31,7 +32,7 @@ export async function deployCommand(
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const zipFileName = `deploy-${timestamp}.zip`;
   // Create temp zip locally
-  const localTempDir = path.join(process.cwd(), '.deploy-temp');
+  const localTempDir = path.join(os.tmpdir(), '.deploy-temp');
   const localZipPath = path.join(localTempDir, zipFileName);
   const stagingZipPath = config.staging.type === 'local'
     ? path.join(config.staging.path, zipFileName)

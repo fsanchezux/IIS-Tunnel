@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IIS-Tunnel</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0a0a0a;
+      --surface: #141414;
+      --surface-hover: #1a1a1a;
+      --border: #262626;
+      --text: #e5e5e5;
+      --text-dim: #737373;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --success: #22c55e;
+      --error: #ef4444;
+      --warning: #f59e0b;
+      --radius: 8px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* Header */
+    .header {
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+    }
+    .header .tag {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: var(--accent);
+      color: white;
+      font-weight: 500;
+    }
+
+    /* Layout */
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 32px 24px;
+    }
+
+    /* Steps indicator */
+    .steps {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 32px;
+    }
+    .step-dot {
+      width: 32px;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--border);
+      transition: background 0.3s;
+    }
+    .step-dot.active { background: var(--accent); }
+    .step-dot.done { background: var(--success); }
+
+    /* Views */
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* Profile cards */
+    .section-title {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 16px;
+    }
+
+    .profile-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 12px;
+    }
+
+    .profile-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .profile-card:hover {
+      border-color: var(--accent);
+      background: var(--surface-hover);
+    }
+    .profile-card .name {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .profile-card .desc {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 12px;
+    }
+    .profile-card .meta {
+      font-size: 12px;
+      color: var(--text-dim);
+      font-family: 'Cascadia Code', 'Consolas', monospace;
+    }
+    .profile-card .lock {
+      float: right;
+      font-size: 12px;
+      color: var(--warning);
+    }
+    .profile-card.add-card {
+      border-style: dashed;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      min-height: 100px;
+    }
+    .profile-card.add-card .add-icon {
+      font-size: 28px;
+      color: var(--text-dim);
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+    .profile-card.add-card:hover .add-icon { color: var(--accent); }
+
+    /* File tree */
+    .file-tree {
+      font-family: 'Cascadia Code', 'Consolas', monospace;
+      font-size: 13px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+    .file-tree::-webkit-scrollbar { width: 6px; }
+    .file-tree::-webkit-scrollbar-track { background: transparent; }
+    .file-tree::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    .tree-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 0;
+      cursor: pointer;
+      user-select: none;
+    }
+    .tree-item:hover { color: var(--accent); }
+    .tree-item .indent { display: inline-block; }
+    .tree-item .icon { width: 16px; text-align: center; font-size: 12px; }
+    .tree-item .cb {
+      width: 16px;
+      height: 16px;
+      border-radius: 3px;
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 10px;
+      transition: all 0.1s;
+    }
+    .tree-item .cb.checked {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+    .tree-item .cb.partial {
+      background: transparent;
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .tree-item .toggle {
+      width: 16px;
+      text-align: center;
+      font-size: 10px;
+      color: var(--text-dim);
+      cursor: pointer;
+    }
+    .tree-item .fname { flex: 1; }
+    .tree-item .fsize {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+    .tree-item .recent-badge {
+      font-size: 9px;
+      padding: 1px 6px;
+      border-radius: 8px;
+      background: rgba(34,197,94,0.15);
+      color: var(--success);
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      flex-shrink: 0;
+    }
+
+    /* Toolbar */
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      gap: 12px;
+    }
+    .toolbar .info {
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+    .toolbar .info strong { color: var(--text); }
+
+    /* Search */
+    .search-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 8px 12px;
+      color: var(--text);
+      font-size: 13px;
+      width: 240px;
+      outline: none;
+      font-family: inherit;
+    }
+    .search-box:focus { border-color: var(--accent); }
+
+    /* Buttons */
+    .btn {
+      padding: 10px 20px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+    .btn:hover { background: var(--surface-hover); border-color: var(--text-dim); }
+    .btn-primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-primary:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .btn-danger { border-color: var(--error); color: var(--error); }
+    .btn-danger:hover { background: rgba(239,68,68,0.1); }
+
+    .btn-row {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+      justify-content: flex-end;
+    }
+
+    /* Summary */
+    .summary-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .summary-box h3 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      font-size: 13px;
+    }
+    .summary-row .label { color: var(--text-dim); }
+    .summary-row .value {
+      font-family: 'Cascadia Code', 'Consolas', monospace;
+      font-size: 12px;
+    }
+
+    .selected-files-list {
+      font-family: 'Cascadia Code', 'Consolas', monospace;
+      font-size: 12px;
+      max-height: 200px;
+      overflow-y: auto;
+      padding: 12px;
+      background: var(--bg);
+      border-radius: 4px;
+      margin-top: 8px;
+    }
+    .selected-files-list div {
+      padding: 2px 0;
+      color: var(--text-dim);
+    }
+
+    /* Deploy log */
+    .deploy-log {
+      background: #000;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      font-family: 'Cascadia Code', 'Consolas', monospace;
+      font-size: 12px;
+      max-height: 400px;
+      overflow-y: auto;
+      line-height: 1.6;
+    }
+    .deploy-log .log-line { color: var(--text-dim); }
+    .deploy-log .log-error { color: var(--error); }
+    .deploy-log .log-success { color: var(--success); }
+
+    .status-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .status-badge.deploying { background: rgba(59,130,246,0.15); color: var(--accent); }
+    .status-badge.success { background: rgba(34,197,94,0.15); color: var(--success); }
+    .status-badge.error { background: rgba(239,68,68,0.15); color: var(--error); }
+
+    /* Password modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+      width: 360px;
+    }
+    .modal h3 { margin-bottom: 16px; font-size: 16px; }
+    .modal input {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      outline: none;
+      font-family: inherit;
+      margin-bottom: 8px;
+    }
+    .modal input:focus { border-color: var(--accent); }
+    .modal .error-text { color: var(--error); font-size: 12px; margin-bottom: 8px; }
+
+    /* Settings panel */
+    .settings-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .settings-panel h3 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .settings-panel h3 .btn {
+      font-size: 11px;
+      padding: 4px 10px;
+    }
+    .settings-grid {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 10px 16px;
+      align-items: center;
+    }
+    .settings-grid label {
+      font-size: 12px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .settings-grid input {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+      font-family: 'Cascadia Code', 'Consolas', monospace;
+      outline: none;
+    }
+    .settings-grid input:focus { border-color: var(--accent); }
+    .settings-grid input:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .settings-separator {
+      grid-column: 1 / -1;
+      border-top: 1px solid var(--border);
+      margin: 8px 0;
+    }
+    .settings-section-label {
+      grid-column: 1 / -1;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 4px;
+    }
+    .settings-saved {
+      font-size: 12px;
+      color: var(--success);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .settings-saved.show { opacity: 1; }
+
+    /* Settings password modal */
+    .modal.modal-wide { width: 420px; }
+
+    /* Animations */
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .pulsing { animation: pulse 1.5s infinite; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>IIS-Tunnel</h1>
+    <span class="tag">UI</span>
+  </div>
+
+  <div class="container">
+    <!-- Steps -->
+    <div class="steps">
+      <div class="step-dot active" data-step="0"></div>
+      <div class="step-dot" data-step="1"></div>
+      <div class="step-dot" data-step="2"></div>
+      <div class="step-dot" data-step="3"></div>
+    </div>
+
+    <!-- View 0: Profile selection -->
+    <div class="view active" id="view-profiles">
+      <div class="section-title">Select Profile</div>
+      <div class="profile-grid" id="profile-grid"></div>
+    </div>
+
+    <!-- View 1: File selection -->
+    <div class="view" id="view-files">
+      <div class="toolbar">
+        <div class="info">
+          Profile: <strong id="selected-profile-name"></strong>
+          &mdash; <span id="source-path"></span>
+        </div>
+        <button class="btn" onclick="toggleSettings()" style="font-size:12px;padding:6px 12px;" id="btn-toggle-settings">Settings</button>
+      </div>
+
+      <!-- Settings panel (hidden by default) -->
+      <div class="settings-panel" id="settings-panel" style="display:none;">
+        <h3>
+          Profile Settings
+          <span class="settings-saved" id="settings-saved">Saved</span>
+        </h3>
+
+        <div class="settings-grid">
+          <div class="settings-section-label">Paths</div>
+
+          <label>Source</label>
+          <input type="text" id="set-source" disabled>
+
+          <label>Staging</label>
+          <input type="text" id="set-staging" disabled>
+
+          <label>Destination</label>
+          <input type="text" id="set-destination" disabled>
+
+          <div class="settings-separator"></div>
+          <div class="settings-section-label">Staging SSH</div>
+
+          <label>Host</label>
+          <input type="text" id="set-staging-host" disabled>
+
+          <label>Port</label>
+          <input type="number" id="set-staging-port" disabled>
+
+          <label>Username</label>
+          <input type="text" id="set-staging-user" disabled>
+
+          <label>Private Key</label>
+          <input type="text" id="set-staging-key" disabled>
+
+          <div class="settings-separator"></div>
+          <div class="settings-section-label">Destination SSH</div>
+
+          <label>Host</label>
+          <input type="text" id="set-dest-host" disabled>
+
+          <label>Port</label>
+          <input type="number" id="set-dest-port" disabled>
+
+          <label>Username</label>
+          <input type="text" id="set-dest-user" disabled>
+
+          <label>Private Key</label>
+          <input type="text" id="set-dest-key" disabled>
+        </div>
+
+        <div class="btn-row" style="margin-top:16px;">
+          <button class="btn" onclick="cancelSettings()" id="btn-cancel-settings" style="display:none;">Cancel</button>
+          <button class="btn btn-primary" onclick="editSettings()" id="btn-edit-settings">Edit</button>
+          <button class="btn btn-primary" onclick="saveSettings()" id="btn-save-settings" style="display:none;">Save Changes</button>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <div class="info">
+          <input type="text" class="search-box" id="file-search" placeholder="Filter files..." style="width:200px;">
+          &nbsp; <strong id="selected-count">0</strong> files selected
+        </div>
+        <div>
+          <button class="btn" onclick="selectRecent()" style="font-size:12px;padding:6px 12px;" id="btn-select-recent">Recent</button>
+          <button class="btn" onclick="selectAll()" style="font-size:12px;padding:6px 12px;">Select all</button>
+          <button class="btn" onclick="selectNone()" style="font-size:12px;padding:6px 12px;">Clear</button>
+        </div>
+      </div>
+      <div class="file-tree" id="file-tree"></div>
+      <div class="btn-row">
+        <button class="btn" onclick="goToStep(0)">Back</button>
+        <button class="btn btn-primary" id="btn-continue" onclick="goToStep(2)">Continue</button>
+      </div>
+    </div>
+
+    <!-- View 2: Review -->
+    <div class="view" id="view-review">
+      <div class="section-title">Review Deploy</div>
+      <div class="summary-box">
+        <h3>Configuration</h3>
+        <div class="summary-row">
+          <span class="label">Profile</span>
+          <span class="value" id="rev-profile"></span>
+        </div>
+        <div class="summary-row">
+          <span class="label">Source</span>
+          <span class="value" id="rev-source"></span>
+        </div>
+        <div class="summary-row">
+          <span class="label">Staging</span>
+          <span class="value" id="rev-staging"></span>
+        </div>
+        <div class="summary-row">
+          <span class="label">Destination</span>
+          <span class="value" id="rev-destination"></span>
+        </div>
+      </div>
+      <div class="summary-box">
+        <h3>Files to deploy (<span id="rev-count"></span>)</h3>
+        <div class="selected-files-list" id="rev-files"></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="goToStep(1)">Back</button>
+        <button class="btn btn-primary" id="btn-deploy" onclick="startDeploy()">Deploy</button>
+      </div>
+    </div>
+
+    <!-- View 3: Deploy -->
+    <div class="view" id="view-deploy">
+      <div class="toolbar">
+        <div class="section-title" style="margin:0;">Deploy Output</div>
+        <span class="status-badge deploying pulsing" id="deploy-status">Deploying...</span>
+      </div>
+      <div class="deploy-log" id="deploy-log"></div>
+      <div class="btn-row">
+        <button class="btn" id="btn-back-deploy" onclick="goToStep(0)" disabled>New Deploy</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Password modal (profile access) -->
+  <div class="modal-overlay" id="password-modal">
+    <div class="modal">
+      <h3>Password Required</h3>
+      <input type="password" id="password-input" placeholder="Enter profile password">
+      <div class="error-text" id="password-error" style="display:none;">Incorrect password</div>
+      <div class="btn-row" style="margin-top:12px;">
+        <button class="btn" onclick="closePasswordModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="submitPassword()">Verify</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Password modal (settings edit) -->
+  <div class="modal-overlay" id="settings-password-modal">
+    <div class="modal">
+      <h3>Confirm Password to Edit Settings</h3>
+      <input type="password" id="settings-password-input" placeholder="Enter profile password">
+      <div class="error-text" id="settings-password-error" style="display:none;">Incorrect password</div>
+      <div class="btn-row" style="margin-top:12px;">
+        <button class="btn" onclick="closeSettingsPasswordModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="submitSettingsPassword()">Verify</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- New profile modal -->
+  <div class="modal-overlay" id="new-profile-modal">
+    <div class="modal modal-wide">
+      <h3>New Profile</h3>
+      <div class="error-text" id="new-profile-error" style="display:none;"></div>
+      <div class="settings-grid" style="grid-template-columns:120px 1fr;">
+        <div class="settings-section-label">General</div>
+
+        <label>Name</label>
+        <input type="text" id="np-name" placeholder="my-profile">
+
+        <label>Description</label>
+        <input type="text" id="np-desc" placeholder="Deployment profile for...">
+
+        <label>Password</label>
+        <input type="password" id="np-password" placeholder="Optional">
+
+        <div class="settings-separator"></div>
+        <div class="settings-section-label">Paths</div>
+
+        <label>Source</label>
+        <input type="text" id="np-source" placeholder="C:\path\to\source">
+
+        <label>Staging</label>
+        <input type="text" id="np-staging" placeholder="C:\webs\t_staging">
+
+        <label>Destination</label>
+        <input type="text" id="np-destination" placeholder="C:\webs\MyApp">
+
+        <label>Backup</label>
+        <input type="text" id="np-backup" placeholder="C:\webs\backups">
+
+        <div class="settings-separator"></div>
+        <div class="settings-section-label">SSH</div>
+
+        <label>Host</label>
+        <input type="text" id="np-ssh-host" placeholder="192.168.1.100">
+
+        <label>Port</label>
+        <input type="number" id="np-ssh-port" value="22">
+
+        <label>Username</label>
+        <input type="text" id="np-ssh-user" placeholder="deployuser">
+
+        <label>Private Key</label>
+        <input type="text" id="np-ssh-key" placeholder="C:\Users\...\.ssh\key">
+
+        <div class="settings-separator"></div>
+        <div class="settings-section-label">Logging</div>
+
+        <label>Log path</label>
+        <input type="text" id="np-log-path" placeholder="C:\webs\logs">
+
+        <label>Log filename</label>
+        <input type="text" id="np-log-file" placeholder="my-deploy">
+      </div>
+      <div class="btn-row" style="margin-top:16px;">
+        <button class="btn" onclick="closeNewProfileModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="submitNewProfile()">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // State
+    let profiles = [];
+    let currentProfile = null;
+    let fileTree = [];
+    let selectedPaths = new Set();
+    let recentlyChanged = new Set();
+    let currentStep = 0;
+    let collapsedDirs = new Set();
+    let filterText = '';
+
+    // Init
+    async function init() {
+      const res = await fetch('/api/profiles');
+      profiles = await res.json();
+      renderProfiles();
+    }
+
+    function renderProfiles() {
+      const grid = document.getElementById('profile-grid');
+      const cards = profiles.map(p => `
+        <div class="profile-card" onclick="selectProfile('${p.name}')">
+          ${p.hasPassword ? '<span class="lock">&#128274;</span>' : ''}
+          <div class="name">${p.name}</div>
+          <div class="desc">${p.description}</div>
+          <div class="meta">${p.destinationPath}</div>
+        </div>
+      `).join('');
+      grid.innerHTML = cards + `
+        <div class="profile-card add-card" onclick="openNewProfileModal()">
+          <div class="add-icon">+</div>
+          <div class="desc">Add new profile</div>
+        </div>
+      `;
+    }
+
+    // Profile selection
+    async function selectProfile(name) {
+      const profile = profiles.find(p => p.name === name);
+      if (!profile) return;
+
+      if (profile.hasPassword) {
+        currentProfile = profile;
+        showPasswordModal();
+        return;
+      }
+
+      await loadProfileFiles(name);
+    }
+
+    async function loadProfileFiles(name) {
+      currentProfile = profiles.find(p => p.name === name);
+      document.getElementById('selected-profile-name').textContent = name;
+
+      const res = await fetch(`/api/profiles/${name}/files`);
+      const data = await res.json();
+      fileTree = data.tree;
+      recentlyChanged = new Set((data.recentlyChanged || []).map(p => p.replace(/\\/g, '/')));
+      // Auto-select recently changed files if no previous selection
+      const prevSelected = data.selected.map(p => p.replace(/\\/g, '/'));
+      if (prevSelected.length > 0) {
+        selectedPaths = new Set(prevSelected);
+      } else {
+        selectedPaths = new Set(recentlyChanged);
+      }
+      document.getElementById('source-path').textContent = data.sourcePath;
+      collapsedDirs = new Set();
+      collapseAll(fileTree);
+      filterText = '';
+      document.getElementById('file-search').value = '';
+
+      renderFileTree();
+      goToStep(1);
+    }
+
+    // Password
+    function showPasswordModal() {
+      document.getElementById('password-modal').classList.add('active');
+      document.getElementById('password-input').value = '';
+      document.getElementById('password-error').style.display = 'none';
+      setTimeout(() => document.getElementById('password-input').focus(), 100);
+    }
+    function closePasswordModal() {
+      document.getElementById('password-modal').classList.remove('active');
+    }
+    async function submitPassword() {
+      const pw = document.getElementById('password-input').value;
+      const res = await fetch(`/api/profiles/${currentProfile.name}/verify-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pw })
+      });
+      const data = await res.json();
+      if (data.valid) {
+        closePasswordModal();
+        await loadProfileFiles(currentProfile.name);
+      } else {
+        document.getElementById('password-error').style.display = 'block';
+      }
+    }
+
+    // File tree rendering
+    function getAllPaths(nodes, prefix = '') {
+      let paths = [];
+      for (const node of nodes) {
+        const p = prefix ? prefix + '/' + node.name : node.name;
+        const fullPath = node.path.replace(/\\/g, '/');
+        if (node.type === 'file') {
+          paths.push(fullPath);
+        } else if (node.children) {
+          paths = paths.concat(getAllPaths(node.children, p));
+        }
+      }
+      return paths;
+    }
+
+    function getCheckState(node) {
+      if (node.type === 'file') {
+        return selectedPaths.has(node.path.replace(/\\/g, '/')) ? 'checked' : '';
+      }
+      const childPaths = getAllPaths(node.children || []);
+      const selCount = childPaths.filter(p => selectedPaths.has(p)).length;
+      if (selCount === 0) return '';
+      if (selCount === childPaths.length) return 'checked';
+      return 'partial';
+    }
+
+    function matchesFilter(node) {
+      if (!filterText) return true;
+      const lower = filterText.toLowerCase();
+      if (node.name.toLowerCase().includes(lower)) return true;
+      if (node.children) {
+        return node.children.some(c => matchesFilter(c));
+      }
+      return false;
+    }
+
+    function renderFileTree() {
+      const container = document.getElementById('file-tree');
+      let html = '';
+
+      function renderNode(node, depth) {
+        if (!matchesFilter(node)) return;
+
+        const indent = depth * 20;
+        const normalizedPath = node.path.replace(/\\/g, '/');
+        const state = getCheckState(node);
+        const cbClass = state === 'checked' ? 'cb checked' : state === 'partial' ? 'cb partial' : 'cb';
+        const cbIcon = state === 'checked' ? '&#10003;' : state === 'partial' ? '&#8722;' : '';
+
+        if (node.type === 'directory') {
+          const collapsed = collapsedDirs.has(normalizedPath);
+          const arrow = collapsed ? '&#9654;' : '&#9660;';
+          html += `<div class="tree-item" style="padding-left:${indent}px">
+            <span class="toggle" onclick="event.stopPropagation();toggleDir('${normalizedPath}')">${arrow}</span>
+            <span class="${cbClass}" onclick="event.stopPropagation();toggleSelect('${normalizedPath}','directory')">${cbIcon}</span>
+            <span class="icon" style="color:#f59e0b">&#128193;</span>
+            <span class="fname">${node.name}</span>
+          </div>`;
+          if (!collapsed && node.children) {
+            for (const child of node.children) {
+              renderNode(child, depth + 1);
+            }
+          }
+        } else {
+          const isRecent = recentlyChanged.has(normalizedPath);
+          html += `<div class="tree-item" style="padding-left:${indent + 20}px" onclick="toggleSelect('${normalizedPath}','file')">
+            <span class="${cbClass}">${cbIcon}</span>
+            <span class="icon" style="color:var(--text-dim)">&#128196;</span>
+            <span class="fname">${node.name}</span>
+            ${isRecent ? '<span class="recent-badge">RECENT</span>' : ''}
+          </div>`;
+        }
+      }
+
+      for (const node of fileTree) {
+        renderNode(node, 0);
+      }
+      container.innerHTML = html;
+      updateSelectedCount();
+    }
+
+    function findNode(nodes, normalizedPath) {
+      for (const n of nodes) {
+        if (n.path.replace(/\\/g, '/') === normalizedPath) return n;
+        if (n.children) {
+          const found = findNode(n.children, normalizedPath);
+          if (found) return found;
+        }
+      }
+      return null;
+    }
+
+    function collapseAll(nodes) {
+      for (const node of nodes) {
+        if (node.type === 'directory') {
+          collapsedDirs.add(node.path.replace(/\\/g, '/'));
+          if (node.children) collapseAll(node.children);
+        }
+      }
+    }
+
+    function toggleDir(normalizedPath) {
+      if (collapsedDirs.has(normalizedPath)) {
+        collapsedDirs.delete(normalizedPath);
+      } else {
+        collapsedDirs.add(normalizedPath);
+      }
+      renderFileTree();
+    }
+
+    function toggleSelect(normalizedPath, type) {
+      if (type === 'file') {
+        if (selectedPaths.has(normalizedPath)) {
+          selectedPaths.delete(normalizedPath);
+        } else {
+          selectedPaths.add(normalizedPath);
+        }
+      } else {
+        const node = findNode(fileTree, normalizedPath);
+        if (!node || !node.children) return;
+        const childPaths = getAllPaths(node.children);
+        const allSelected = childPaths.every(p => selectedPaths.has(p));
+        if (allSelected) {
+          childPaths.forEach(p => selectedPaths.delete(p));
+        } else {
+          childPaths.forEach(p => selectedPaths.add(p));
+        }
+      }
+      renderFileTree();
+    }
+
+    function selectAll() {
+      const allPaths = getAllPaths(fileTree);
+      allPaths.forEach(p => selectedPaths.add(p));
+      renderFileTree();
+    }
+
+    function selectNone() {
+      selectedPaths.clear();
+      renderFileTree();
+    }
+
+    function selectRecent() {
+      selectedPaths = new Set(recentlyChanged);
+      renderFileTree();
+    }
+
+    function updateSelectedCount() {
+      document.getElementById('selected-count').textContent = selectedPaths.size;
+      document.getElementById('btn-continue').disabled = selectedPaths.size === 0;
+    }
+
+    // Search
+    document.getElementById('file-search').addEventListener('input', (e) => {
+      filterText = e.target.value;
+      renderFileTree();
+    });
+
+    // Enter key for password
+    document.getElementById('password-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') submitPassword();
+    });
+
+    // Steps
+    function goToStep(step) {
+      currentStep = step;
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.querySelectorAll('.step-dot').forEach((d, i) => {
+        d.classList.remove('active', 'done');
+        if (i < step) d.classList.add('done');
+        if (i === step) d.classList.add('active');
+      });
+
+      const views = ['view-profiles', 'view-files', 'view-review', 'view-deploy'];
+      document.getElementById(views[step]).classList.add('active');
+
+      if (step === 2) populateReview();
+    }
+
+    function populateReview() {
+      document.getElementById('rev-profile').textContent = currentProfile.name;
+      document.getElementById('rev-source').textContent = currentProfile.sourcePath;
+      document.getElementById('rev-staging').textContent = currentProfile.stagingPath;
+      document.getElementById('rev-destination').textContent = currentProfile.destinationPath;
+      document.getElementById('rev-count').textContent = selectedPaths.size;
+
+      const sourcePath = currentProfile.sourcePath.replace(/\\/g, '/').replace(/\/$/, '');
+      const filesHtml = [...selectedPaths]
+        .sort()
+        .map(p => {
+          const rel = p.startsWith(sourcePath) ? p.slice(sourcePath.length + 1) : p;
+          return `<div>${rel}</div>`;
+        })
+        .join('');
+      document.getElementById('rev-files').innerHTML = filesHtml;
+    }
+
+    // Deploy
+    async function startDeploy() {
+      // Save selection to YAML first
+      await fetch(`/api/profiles/${currentProfile.name}/folders`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ selectedPaths: [...selectedPaths] })
+      });
+
+      goToStep(3);
+
+      const logEl = document.getElementById('deploy-log');
+      const statusEl = document.getElementById('deploy-status');
+      logEl.innerHTML = '';
+
+      const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const ws = new WebSocket(`${protocol}//${location.host}/ws`);
+
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ type: 'deploy', profileName: currentProfile.name }));
+      };
+
+      ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'log') {
+          const line = document.createElement('div');
+          line.className = 'log-line';
+          line.textContent = msg.text;
+          logEl.appendChild(line);
+          logEl.scrollTop = logEl.scrollHeight;
+        } else if (msg.type === 'error') {
+          const line = document.createElement('div');
+          line.className = 'log-error';
+          line.textContent = msg.text;
+          logEl.appendChild(line);
+          logEl.scrollTop = logEl.scrollHeight;
+        } else if (msg.type === 'status') {
+          if (msg.text === 'success') {
+            statusEl.className = 'status-badge success';
+            statusEl.textContent = 'Success';
+            document.getElementById('btn-back-deploy').disabled = false;
+          } else if (msg.text === 'error') {
+            statusEl.className = 'status-badge error';
+            statusEl.textContent = 'Failed';
+            document.getElementById('btn-back-deploy').disabled = false;
+          }
+        }
+      };
+
+      ws.onerror = () => {
+        statusEl.className = 'status-badge error';
+        statusEl.textContent = 'Connection Error';
+        document.getElementById('btn-back-deploy').disabled = false;
+      };
+    }
+
+    // ── Settings panel ──
+    let settingsEditing = false;
+    let settingsPasswordVerified = false;
+
+    function toggleSettings() {
+      const panel = document.getElementById('settings-panel');
+      const visible = panel.style.display !== 'none';
+      panel.style.display = visible ? 'none' : 'block';
+      if (!visible) populateSettings();
+    }
+
+    function populateSettings() {
+      const p = currentProfile;
+      document.getElementById('set-source').value = p.sourcePath || '';
+      document.getElementById('set-staging').value = p.stagingPath || '';
+      document.getElementById('set-destination').value = p.destinationPath || '';
+
+      const ss = p.stagingSSH || {};
+      document.getElementById('set-staging-host').value = ss.host || '';
+      document.getElementById('set-staging-port').value = ss.port || 22;
+      document.getElementById('set-staging-user').value = ss.username || '';
+      document.getElementById('set-staging-key').value = ss.privateKey || '';
+
+      const ds = p.destinationSSH || {};
+      document.getElementById('set-dest-host').value = ds.host || '';
+      document.getElementById('set-dest-port').value = ds.port || 22;
+      document.getElementById('set-dest-user').value = ds.username || '';
+      document.getElementById('set-dest-key').value = ds.privateKey || '';
+
+      setSettingsDisabled(true);
+      settingsEditing = false;
+      settingsPasswordVerified = false;
+      document.getElementById('btn-edit-settings').style.display = '';
+      document.getElementById('btn-save-settings').style.display = 'none';
+      document.getElementById('btn-cancel-settings').style.display = 'none';
+    }
+
+    function setSettingsDisabled(disabled) {
+      const ids = [
+        'set-source','set-staging','set-destination',
+        'set-staging-host','set-staging-port','set-staging-user','set-staging-key',
+        'set-dest-host','set-dest-port','set-dest-user','set-dest-key'
+      ];
+      ids.forEach(id => document.getElementById(id).disabled = disabled);
+    }
+
+    function editSettings() {
+      // If profile has password and not yet verified, ask for it
+      if (currentProfile.hasPassword && !settingsPasswordVerified) {
+        showSettingsPasswordModal();
+        return;
+      }
+      unlockSettings();
+    }
+
+    function unlockSettings() {
+      settingsEditing = true;
+      setSettingsDisabled(false);
+      document.getElementById('btn-edit-settings').style.display = 'none';
+      document.getElementById('btn-save-settings').style.display = '';
+      document.getElementById('btn-cancel-settings').style.display = '';
+    }
+
+    function cancelSettings() {
+      populateSettings();
+    }
+
+    async function saveSettings() {
+      const settings = {
+        sourcePath: document.getElementById('set-source').value,
+        stagingPath: document.getElementById('set-staging').value,
+        destinationPath: document.getElementById('set-destination').value,
+        stagingSSH: {
+          host: document.getElementById('set-staging-host').value,
+          port: parseInt(document.getElementById('set-staging-port').value) || 22,
+          username: document.getElementById('set-staging-user').value,
+          privateKey: document.getElementById('set-staging-key').value || undefined,
+        },
+        destinationSSH: {
+          host: document.getElementById('set-dest-host').value,
+          port: parseInt(document.getElementById('set-dest-port').value) || 22,
+          username: document.getElementById('set-dest-user').value,
+          privateKey: document.getElementById('set-dest-key').value || undefined,
+        },
+      };
+
+      const body = { settings };
+      // Include password if profile requires it
+      if (currentProfile.hasPassword) {
+        body.password = document.getElementById('settings-password-input').value;
+      }
+
+      const res = await fetch(`/api/profiles/${currentProfile.name}/settings`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        alert('Error saving: ' + (data.error || 'Unknown error'));
+        return;
+      }
+
+      // Update local profile data
+      currentProfile.sourcePath = settings.sourcePath;
+      currentProfile.stagingPath = settings.stagingPath;
+      currentProfile.destinationPath = settings.destinationPath;
+      currentProfile.stagingSSH = settings.stagingSSH;
+      currentProfile.destinationSSH = settings.destinationSSH;
+
+      // Update source path display
+      document.getElementById('source-path').textContent = settings.sourcePath;
+
+      // Flash "Saved"
+      const savedEl = document.getElementById('settings-saved');
+      savedEl.classList.add('show');
+      setTimeout(() => savedEl.classList.remove('show'), 2000);
+
+      // Lock fields again
+      populateSettings();
+
+      // Reload file tree if source changed
+      const res2 = await fetch(`/api/profiles/${currentProfile.name}/files`);
+      const filesData = await res2.json();
+      fileTree = filesData.tree;
+      recentlyChanged = new Set((filesData.recentlyChanged || []).map(p => p.replace(/\\/g, '/')));
+      selectedPaths = new Set(filesData.selected.map(p => p.replace(/\\/g, '/')));
+      collapsedDirs = new Set();
+      collapseAll(fileTree);
+      renderFileTree();
+    }
+
+    // Settings password modal
+    function showSettingsPasswordModal() {
+      document.getElementById('settings-password-modal').classList.add('active');
+      document.getElementById('settings-password-input').value = '';
+      document.getElementById('settings-password-error').style.display = 'none';
+      setTimeout(() => document.getElementById('settings-password-input').focus(), 100);
+    }
+    function closeSettingsPasswordModal() {
+      document.getElementById('settings-password-modal').classList.remove('active');
+    }
+    async function submitSettingsPassword() {
+      const pw = document.getElementById('settings-password-input').value;
+      const res = await fetch(`/api/profiles/${currentProfile.name}/verify-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pw })
+      });
+      const data = await res.json();
+      if (data.valid) {
+        settingsPasswordVerified = true;
+        closeSettingsPasswordModal();
+        unlockSettings();
+      } else {
+        document.getElementById('settings-password-error').style.display = 'block';
+      }
+    }
+
+    // Enter key for settings password
+    document.getElementById('settings-password-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') submitSettingsPassword();
+    });
+
+    // ── New profile modal ──
+    function openNewProfileModal() {
+      document.getElementById('new-profile-modal').classList.add('active');
+      document.getElementById('new-profile-error').style.display = 'none';
+      // Clear all fields
+      ['np-name','np-desc','np-password','np-source','np-staging','np-destination',
+       'np-backup','np-ssh-host','np-ssh-user','np-ssh-key','np-log-path','np-log-file'
+      ].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('np-ssh-port').value = '22';
+      setTimeout(() => document.getElementById('np-name').focus(), 100);
+    }
+
+    function closeNewProfileModal() {
+      document.getElementById('new-profile-modal').classList.remove('active');
+    }
+
+    async function submitNewProfile() {
+      const errEl = document.getElementById('new-profile-error');
+      errEl.style.display = 'none';
+
+      const name = document.getElementById('np-name').value.trim();
+      if (!name) {
+        errEl.textContent = 'Profile name is required';
+        errEl.style.display = 'block';
+        return;
+      }
+
+      const sourcePath = document.getElementById('np-source').value.trim();
+      const stagingPath = document.getElementById('np-staging').value.trim();
+      const destPath = document.getElementById('np-destination').value.trim();
+      const backupPath = document.getElementById('np-backup').value.trim();
+      const logPath = document.getElementById('np-log-path').value.trim();
+      const logFile = document.getElementById('np-log-file').value.trim();
+
+      if (!sourcePath || !stagingPath || !destPath || !backupPath || !logPath || !logFile) {
+        errEl.textContent = 'All path and logging fields are required';
+        errEl.style.display = 'block';
+        return;
+      }
+
+      const sshHost = document.getElementById('np-ssh-host').value.trim();
+      const sshPort = parseInt(document.getElementById('np-ssh-port').value) || 22;
+      const sshUser = document.getElementById('np-ssh-user').value.trim();
+      const sshKey = document.getElementById('np-ssh-key').value.trim();
+
+      const sshConfig = sshHost ? { host: sshHost, port: sshPort, username: sshUser, privateKey: sshKey || undefined } : undefined;
+      const connType = sshHost ? 'ssh' : 'local';
+
+      const password = document.getElementById('np-password').value || undefined;
+      const description = document.getElementById('np-desc').value.trim() || undefined;
+
+      const profile = {
+        description,
+        password,
+        source: { path: sourcePath },
+        staging: { path: stagingPath, type: connType, ssh: sshConfig },
+        destination: { path: destPath, type: connType, ssh: sshConfig },
+        backup: { path: backupPath, maxBackups: 5 },
+        logging: { path: logPath, filename: logFile },
+      };
+
+      const res = await fetch('/api/profiles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, profile })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        errEl.textContent = data.error || 'Error creating profile';
+        errEl.style.display = 'block';
+        return;
+      }
+
+      closeNewProfileModal();
+      // Reload profiles
+      const pRes = await fetch('/api/profiles');
+      profiles = await pRes.json();
+      renderProfiles();
+    }
+
+    // Enter key in new profile name
+    document.getElementById('np-name').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') submitNewProfile();
+    });
+
+    init();
+  </script>
+</body>
+</html>
