@@ -885,7 +885,8 @@ exit 0
     staging: LocationConfig,
     destination: LocationConfig,
     backup: { path: string; maxBackups?: number },
-    sourceFolders?: (string | { [key: string]: string[] })[] | null
+    sourceFolders?: (string | { [key: string]: string[] })[] | null,
+    looseFiles?: string[] | null
   ): string {
     const sourceDir = staging.path;
     const destDir = destination.path;
@@ -950,7 +951,7 @@ exit 0
       '',
       'echo.',
       'echo [2/4] Copying new files...',
-      ...this.generateCopyCommands(sourceDir, destDir, sourceFolders),
+      ...this.generateCopyCommands(sourceDir, destDir, sourceFolders, looseFiles),
       '',
       'echo.',
       'echo [3/4] Managing old backups...',
@@ -1117,8 +1118,8 @@ exit 0
     return lines.join('\r\n');
   }
 
-  async uploadWindowsBats(localTempDir: string, staging: LocationConfig, destination: LocationConfig, backup: { path: string; maxBackups?: number }, sourceFolders?: (string | { [key: string]: string[] })[] | null): Promise<void> {
-    const updateBat = this.generateUpdateBat(staging, destination, backup, sourceFolders);
+  async uploadWindowsBats(localTempDir: string, staging: LocationConfig, destination: LocationConfig, backup: { path: string; maxBackups?: number }, sourceFolders?: (string | { [key: string]: string[] })[] | null, looseFiles?: string[] | null): Promise<void> {
+    const updateBat = this.generateUpdateBat(staging, destination, backup, sourceFolders, looseFiles);
     const restoreBat = this.generateRestoreBat(staging, destination, backup);
 
     // Ensure local temp dir exists
@@ -1190,12 +1191,17 @@ exit 0
   private generateCopyCommands(
     sourceDir: string,
     destDir: string,
-    sourceFolders?: (string | { [key: string]: string[] })[] | null
+    sourceFolders?: (string | { [key: string]: string[] })[] | null,
+    looseFiles?: string[] | null
   ): string[] {
     const lines: string[] = [];
 
-    if (sourceFolders && sourceFolders.length > 0) {
-      for (const folderSpec of sourceFolders) {
+    const hasFolders = sourceFolders && sourceFolders.length > 0;
+    const hasLooseFiles = looseFiles && looseFiles.length > 0;
+
+    if (hasFolders || hasLooseFiles) {
+      if (hasFolders) {
+        for (const folderSpec of sourceFolders!) {
         if (typeof folderSpec === 'string') {
           // Copy entire folder
           lines.push('xcopy "' + sourceDir + '\\' + folderSpec + '\\*" "' + destDir + '\\' + folderSpec + '\\" /E /I /Y /Q');
@@ -1219,6 +1225,19 @@ exit 0
               lines.push(')');
             }
           }
+        }
+        }
+      }
+
+      if (hasLooseFiles) {
+        for (const file of looseFiles!) {
+          lines.push('copy /y "' + sourceDir + '\\' + file + '" "' + destDir + '\\' + file + '"');
+          lines.push('if !errorlevel! equ 0 (');
+          lines.push('echo File copied: ' + file);
+          lines.push(') else (');
+          lines.push('echo ERROR: Failed to copy ' + file);
+          lines.push('goto :error');
+          lines.push(')');
         }
       }
     } else {

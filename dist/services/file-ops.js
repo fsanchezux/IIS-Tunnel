@@ -779,7 +779,7 @@ exit 0
             }
         }
     }
-    generateUpdateBat(staging, destination, backup, sourceFolders) {
+    generateUpdateBat(staging, destination, backup, sourceFolders, looseFiles) {
         const sourceDir = staging.path;
         const destDir = destination.path;
         const backupDir = backup.path;
@@ -842,7 +842,7 @@ exit 0
             '',
             'echo.',
             'echo [2/4] Copying new files...',
-            ...this.generateCopyCommands(sourceDir, destDir, sourceFolders),
+            ...this.generateCopyCommands(sourceDir, destDir, sourceFolders, looseFiles),
             '',
             'echo.',
             'echo [3/4] Managing old backups...',
@@ -1002,8 +1002,8 @@ exit 0
         ];
         return lines.join('\r\n');
     }
-    async uploadWindowsBats(localTempDir, staging, destination, backup, sourceFolders) {
-        const updateBat = this.generateUpdateBat(staging, destination, backup, sourceFolders);
+    async uploadWindowsBats(localTempDir, staging, destination, backup, sourceFolders, looseFiles) {
+        const updateBat = this.generateUpdateBat(staging, destination, backup, sourceFolders, looseFiles);
         const restoreBat = this.generateRestoreBat(staging, destination, backup);
         // Ensure local temp dir exists
         await fs.ensureDir(localTempDir);
@@ -1083,34 +1083,49 @@ exit 0
             catch { /* ignore */ }
         }
     }
-    generateCopyCommands(sourceDir, destDir, sourceFolders) {
+    generateCopyCommands(sourceDir, destDir, sourceFolders, looseFiles) {
         const lines = [];
-        if (sourceFolders && sourceFolders.length > 0) {
-            for (const folderSpec of sourceFolders) {
-                if (typeof folderSpec === 'string') {
-                    // Copy entire folder
-                    lines.push('xcopy "' + sourceDir + '\\' + folderSpec + '\\*" "' + destDir + '\\' + folderSpec + '\\" /E /I /Y /Q');
-                    lines.push('if !errorlevel! equ 0 (');
-                    lines.push('echo Folder copied: ' + folderSpec);
-                    lines.push(') else (');
-                    lines.push('echo ERROR: Failed to copy folder ' + folderSpec);
-                    lines.push('goto :error');
-                    lines.push(')');
-                }
-                else {
-                    // Copy specific files from folder
-                    for (const [folderName, files] of Object.entries(folderSpec)) {
-                        lines.push('if not exist "' + destDir + '\\' + folderName + '" mkdir "' + destDir + '\\' + folderName + '"');
-                        for (const file of files) {
-                            lines.push('copy /y "' + sourceDir + '\\' + folderName + '\\' + file + '" "' + destDir + '\\' + folderName + '\\' + file + '"');
-                            lines.push('if !errorlevel! equ 0 (');
-                            lines.push('echo File copied: ' + folderName + '\\' + file);
-                            lines.push(') else (');
-                            lines.push('echo ERROR: Failed to copy ' + folderName + '\\' + file);
-                            lines.push('goto :error');
-                            lines.push(')');
+        const hasFolders = sourceFolders && sourceFolders.length > 0;
+        const hasLooseFiles = looseFiles && looseFiles.length > 0;
+        if (hasFolders || hasLooseFiles) {
+            if (hasFolders) {
+                for (const folderSpec of sourceFolders) {
+                    if (typeof folderSpec === 'string') {
+                        // Copy entire folder
+                        lines.push('xcopy "' + sourceDir + '\\' + folderSpec + '\\*" "' + destDir + '\\' + folderSpec + '\\" /E /I /Y /Q');
+                        lines.push('if !errorlevel! equ 0 (');
+                        lines.push('echo Folder copied: ' + folderSpec);
+                        lines.push(') else (');
+                        lines.push('echo ERROR: Failed to copy folder ' + folderSpec);
+                        lines.push('goto :error');
+                        lines.push(')');
+                    }
+                    else {
+                        // Copy specific files from folder
+                        for (const [folderName, files] of Object.entries(folderSpec)) {
+                            lines.push('if not exist "' + destDir + '\\' + folderName + '" mkdir "' + destDir + '\\' + folderName + '"');
+                            for (const file of files) {
+                                lines.push('copy /y "' + sourceDir + '\\' + folderName + '\\' + file + '" "' + destDir + '\\' + folderName + '\\' + file + '"');
+                                lines.push('if !errorlevel! equ 0 (');
+                                lines.push('echo File copied: ' + folderName + '\\' + file);
+                                lines.push(') else (');
+                                lines.push('echo ERROR: Failed to copy ' + folderName + '\\' + file);
+                                lines.push('goto :error');
+                                lines.push(')');
+                            }
                         }
                     }
+                }
+            }
+            if (hasLooseFiles) {
+                for (const file of looseFiles) {
+                    lines.push('copy /y "' + sourceDir + '\\' + file + '" "' + destDir + '\\' + file + '"');
+                    lines.push('if !errorlevel! equ 0 (');
+                    lines.push('echo File copied: ' + file);
+                    lines.push(') else (');
+                    lines.push('echo ERROR: Failed to copy ' + file);
+                    lines.push('goto :error');
+                    lines.push(')');
                 }
             }
         }

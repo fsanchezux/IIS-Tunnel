@@ -95,7 +95,7 @@ export async function deployCommand(config, sourceFolders, looseFiles) {
         // Step 3.5: Generate and upload update.bat and restore.bat, then execute update.bat on staging
         const spinnerBats = ora('Generating and uploading update.bat / restore.bat to staging...').start();
         try {
-            await fileOps.uploadWindowsBats(localTempDir, config.staging, config.destination, config.backup, sourceFolders);
+            await fileOps.uploadWindowsBats(localTempDir, config.staging, config.destination, config.backup, sourceFolders, looseFiles);
             spinnerBats.succeed('BAT files uploaded to staging');
             logger.success('BAT files uploaded to staging');
             const spinnerExec = ora('Executing update.bat on staging (as admin)...').start();

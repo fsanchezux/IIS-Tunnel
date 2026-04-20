@@ -41,7 +41,7 @@ export declare class FileOpsService {
         maxBackups?: number;
     }, sourceFolders?: (string | {
         [key: string]: string[];
-    })[] | null): string;
+    })[] | null, looseFiles?: string[] | null): string;
     generateRestoreBat(staging: LocationConfig, destination: LocationConfig, backup: {
         path: string;
         maxBackups?: number;
@@ -51,7 +51,7 @@ export declare class FileOpsService {
         maxBackups?: number;
     }, sourceFolders?: (string | {
         [key: string]: string[];
-    })[] | null): Promise<void>;
+    })[] | null, looseFiles?: string[] | null): Promise<void>;
     uploadAndExecuteRestoreBat(staging: LocationConfig, destination: LocationConfig, backup: {
         path: string;
         maxBackups?: number;
