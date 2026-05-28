@@ -449,6 +449,26 @@
     /* Settings password modal */
     .modal.modal-wide { width: 420px; }
 
+    /* YAML editor modal */
+    .modal.modal-yaml { width: 760px; max-width: 92vw; }
+    .modal.modal-yaml textarea {
+      width: 100%;
+      height: 60vh;
+      resize: vertical;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+      font-family: 'Cascadia Code', 'Consolas', monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      tab-size: 2;
+      white-space: pre;
+      box-sizing: border-box;
+    }
+    .modal.modal-yaml textarea:focus { border-color: var(--accent); outline: none; }
+
     /* Animations */
     @keyframes pulse {
       0%, 100% { opacity: 1; }
@@ -461,6 +481,7 @@
   <div class="header">
     <h1>IIS-Tunnel</h1>
     <span class="tag">UI</span>
+    <button class="btn" onclick="openYamlModal()" style="margin-left:auto;font-size:12px;padding:6px 12px;">Edit YAML</button>
   </div>
 
   <div class="container">
@@ -693,6 +714,20 @@
       <div class="btn-row" style="margin-top:16px;">
         <button class="btn" onclick="closeNewProfileModal()">Cancel</button>
         <button class="btn btn-primary" onclick="submitNewProfile()">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- YAML editor modal -->
+  <div class="modal-overlay" id="yaml-modal">
+    <div class="modal modal-yaml">
+      <h3>Edit Configuration (YAML)</h3>
+      <div class="error-text" id="yaml-error" style="display:none;"></div>
+      <span class="settings-saved" id="yaml-saved" style="display:none;">Saved</span>
+      <textarea id="yaml-editor" spellcheck="false" wrap="off"></textarea>
+      <div class="btn-row" style="margin-top:12px;">
+        <button class="btn" onclick="closeYamlModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveYaml()" id="btn-save-yaml">Save</button>
       </div>
     </div>
   </div>
@@ -1300,6 +1335,72 @@
     // Enter key in new profile name
     document.getElementById('np-name').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') submitNewProfile();
+    });
+
+    // ── YAML editor modal ──
+    async function openYamlModal() {
+      const errEl = document.getElementById('yaml-error');
+      const editor = document.getElementById('yaml-editor');
+      errEl.style.display = 'none';
+      document.getElementById('yaml-saved').classList.remove('show');
+      editor.value = 'Loading...';
+      document.getElementById('yaml-modal').classList.add('active');
+      try {
+        const res = await fetch('/api/config/raw');
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to load config');
+        editor.value = data.content;
+        editor.focus();
+      } catch (err) {
+        errEl.textContent = String(err.message || err);
+        errEl.style.display = 'block';
+        editor.value = '';
+      }
+    }
+
+    function closeYamlModal() {
+      document.getElementById('yaml-modal').classList.remove('active');
+    }
+
+    async function saveYaml() {
+      const errEl = document.getElementById('yaml-error');
+      const savedEl = document.getElementById('yaml-saved');
+      const btn = document.getElementById('btn-save-yaml');
+      errEl.style.display = 'none';
+      btn.disabled = true;
+      try {
+        const content = document.getElementById('yaml-editor').value;
+        const res = await fetch('/api/config/raw', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to save config');
+        savedEl.classList.add('show');
+        savedEl.style.display = 'inline';
+        setTimeout(() => savedEl.classList.remove('show'), 2000);
+        // Reload profiles list in case profiles changed
+        const pRes = await fetch('/api/profiles');
+        profiles = await pRes.json();
+        renderProfiles();
+      } catch (err) {
+        errEl.textContent = String(err.message || err);
+        errEl.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // Tab inserts spaces in the YAML editor instead of moving focus
+    document.getElementById('yaml-editor').addEventListener('keydown', (e) => {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const ta = e.target;
+        const start = ta.selectionStart, end = ta.selectionEnd;
+        ta.value = ta.value.slice(0, start) + '  ' + ta.value.slice(end);
+        ta.selectionStart = ta.selectionEnd = start + 2;
+      }
     });
 
     init();

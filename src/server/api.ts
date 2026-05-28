@@ -114,11 +114,11 @@ function getRecentlyChangedFiles(sourcePath: string, commits: number = 5): strin
   return allFiles.filter(f => f.mtime >= cutoff).map(f => f.path);
 }
 
-// Convert selected files/folders back to the YAML folders format
+// Convert selected files/folders back to the YAML folders + root files format
 function buildFoldersFromSelection(
   sourcePath: string,
   selectedPaths: string[]
-): (string | { [key: string]: string[] })[] {
+): { folders: (string | { [key: string]: string[] })[]; files: string[] } {
   // Normalize all paths
   const normalize = (p: string) => p.replace(/\\/g, '/');
   const normalizedSource = normalize(sourcePath).replace(/\/$/, '');
@@ -165,7 +165,7 @@ function buildFoldersFromSelection(
     }
   }
 
-  return folders;
+  return { folders, files: rootFiles };
 }
 
 function getAllFilesRelative(dirPath: string, prefix: string): string[] {
@@ -186,11 +186,20 @@ function getAllFilesRelative(dirPath: string, prefix: string): string[] {
 // Convert the YAML folders config to a flat list of selected paths
 function getSelectedPathsFromFolders(
   sourcePath: string,
-  folders?: (string | { [key: string]: string[] })[]
+  folders?: (string | { [key: string]: string[] })[],
+  files?: string[]
 ): string[] {
-  if (!folders || folders.length === 0) return [];
   const selected: string[] = [];
   const normalize = (p: string) => p.replace(/\\/g, '/');
+
+  // Root-level loose files
+  if (files && files.length > 0) {
+    for (const file of files) {
+      selected.push(normalize(path.join(sourcePath, file)));
+    }
+  }
+
+  if (!folders || folders.length === 0) return selected;
 
   for (const item of folders) {
     if (typeof item === 'string') {
@@ -221,6 +230,45 @@ export async function startServer(port: number, cfgPath?: string): Promise<numbe
   // Serve static frontend
   const publicDir = path.join(__dirname, '..', '..', 'public');
   app.use(express.static(publicDir));
+
+  // API: Get raw YAML config text
+  app.get('/api/config/raw', (_req, res) => {
+    try {
+      const content = fs.readFileSync(getConfigPath(), 'utf-8');
+      res.json({ content });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // API: Save raw YAML config text (validated before writing)
+  app.put('/api/config/raw', (req, res) => {
+    try {
+      const { content } = req.body as { content: string };
+      if (typeof content !== 'string') {
+        return res.status(400).json({ error: 'content must be a string' });
+      }
+
+      // Validate YAML syntax
+      let parsed: unknown;
+      try {
+        parsed = yaml.load(content);
+      } catch (parseErr) {
+        return res.status(400).json({ error: `Invalid YAML: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}` });
+      }
+
+      // Validate basic structure
+      const obj = parsed as Record<string, unknown> | null;
+      if (!obj || typeof obj !== 'object' || !obj.profiles || typeof obj.profiles !== 'object') {
+        return res.status(400).json({ error: 'Config must contain a "profiles" object' });
+      }
+
+      fs.writeFileSync(getConfigPath(), content, 'utf-8');
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
 
   // API: Create a new profile
   app.post('/api/profiles', (req, res) => {
@@ -291,7 +339,7 @@ export async function startServer(port: number, cfgPath?: string): Promise<numbe
 
       const commits = parseInt(req.query.commits as string) || 5;
       const tree = await scanDirectory(profile.source.path);
-      const selected = getSelectedPathsFromFolders(profile.source.path, profile.source.folders);
+      const selected = getSelectedPathsFromFolders(profile.source.path, profile.source.folders, profile.source.files);
       const recentlyChanged = getRecentlyChangedFiles(profile.source.path, commits);
       res.json({ sourcePath: profile.source.path, tree, selected, recentlyChanged });
     } catch (err) {
@@ -307,11 +355,12 @@ export async function startServer(port: number, cfgPath?: string): Promise<numbe
       if (!profile) return res.status(404).json({ error: 'Profile not found' });
 
       const { selectedPaths } = req.body as { selectedPaths: string[] };
-      const folders = buildFoldersFromSelection(profile.source.path, selectedPaths);
+      const { folders, files } = buildFoldersFromSelection(profile.source.path, selectedPaths);
       profile.source.folders = folders;
+      profile.source.files = files;
       writeRawConfig(config);
 
-      res.json({ success: true, folders });
+      res.json({ success: true, folders, files });
     } catch (err) {
       res.status(500).json({ error: String(err) });
     }

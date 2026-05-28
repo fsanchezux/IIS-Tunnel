@@ -96,7 +96,7 @@ function getRecentlyChangedFiles(sourcePath, commits = 5) {
     const cutoff = newestTime - 24 * 60 * 60 * 1000;
     return allFiles.filter(f => f.mtime >= cutoff).map(f => f.path);
 }
-// Convert selected files/folders back to the YAML folders format
+// Convert selected files/folders back to the YAML folders + root files format
 function buildFoldersFromSelection(sourcePath, selectedPaths) {
     // Normalize all paths
     const normalize = (p) => p.replace(/\\/g, '/');
@@ -141,7 +141,7 @@ function buildFoldersFromSelection(sourcePath, selectedPaths) {
             folders.push({ [folder]: files });
         }
     }
-    return folders;
+    return { folders, files: rootFiles };
 }
 function getAllFilesRelative(dirPath, prefix) {
     const results = [];
@@ -160,11 +160,17 @@ function getAllFilesRelative(dirPath, prefix) {
     return results;
 }
 // Convert the YAML folders config to a flat list of selected paths
-function getSelectedPathsFromFolders(sourcePath, folders) {
-    if (!folders || folders.length === 0)
-        return [];
+function getSelectedPathsFromFolders(sourcePath, folders, files) {
     const selected = [];
     const normalize = (p) => p.replace(/\\/g, '/');
+    // Root-level loose files
+    if (files && files.length > 0) {
+        for (const file of files) {
+            selected.push(normalize(path.join(sourcePath, file)));
+        }
+    }
+    if (!folders || folders.length === 0)
+        return selected;
     for (const item of folders) {
         if (typeof item === 'string') {
             // Entire folder selected - add all files recursively
@@ -192,6 +198,43 @@ export async function startServer(port, cfgPath) {
     // Serve static frontend
     const publicDir = path.join(__dirname, '..', '..', 'public');
     app.use(express.static(publicDir));
+    // API: Get raw YAML config text
+    app.get('/api/config/raw', (_req, res) => {
+        try {
+            const content = fs.readFileSync(getConfigPath(), 'utf-8');
+            res.json({ content });
+        }
+        catch (err) {
+            res.status(500).json({ error: String(err) });
+        }
+    });
+    // API: Save raw YAML config text (validated before writing)
+    app.put('/api/config/raw', (req, res) => {
+        try {
+            const { content } = req.body;
+            if (typeof content !== 'string') {
+                return res.status(400).json({ error: 'content must be a string' });
+            }
+            // Validate YAML syntax
+            let parsed;
+            try {
+                parsed = yaml.load(content);
+            }
+            catch (parseErr) {
+                return res.status(400).json({ error: `Invalid YAML: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}` });
+            }
+            // Validate basic structure
+            const obj = parsed;
+            if (!obj || typeof obj !== 'object' || !obj.profiles || typeof obj.profiles !== 'object') {
+                return res.status(400).json({ error: 'Config must contain a "profiles" object' });
+            }
+            fs.writeFileSync(getConfigPath(), content, 'utf-8');
+            res.json({ success: true });
+        }
+        catch (err) {
+            res.status(500).json({ error: String(err) });
+        }
+    });
     // API: Create a new profile
     app.post('/api/profiles', (req, res) => {
         try {
@@ -260,7 +303,7 @@ export async function startServer(port, cfgPath) {
                 return res.status(404).json({ error: 'Profile not found' });
             const commits = parseInt(req.query.commits) || 5;
             const tree = await scanDirectory(profile.source.path);
-            const selected = getSelectedPathsFromFolders(profile.source.path, profile.source.folders);
+            const selected = getSelectedPathsFromFolders(profile.source.path, profile.source.folders, profile.source.files);
             const recentlyChanged = getRecentlyChangedFiles(profile.source.path, commits);
             res.json({ sourcePath: profile.source.path, tree, selected, recentlyChanged });
         }
@@ -276,10 +319,11 @@ export async function startServer(port, cfgPath) {
             if (!profile)
                 return res.status(404).json({ error: 'Profile not found' });
             const { selectedPaths } = req.body;
-            const folders = buildFoldersFromSelection(profile.source.path, selectedPaths);
+            const { folders, files } = buildFoldersFromSelection(profile.source.path, selectedPaths);
             profile.source.folders = folders;
+            profile.source.files = files;
             writeRawConfig(config);
-            res.json({ success: true, folders });
+            res.json({ success: true, folders, files });
         }
         catch (err) {
             res.status(500).json({ error: String(err) });
